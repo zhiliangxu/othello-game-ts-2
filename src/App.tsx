@@ -144,6 +144,7 @@ const App: React.FC = () => {
                 <GameBoard
                   board={gameState.board}
                   validMoves={gameState.validMoves}
+                  currentPlayer={gameState.currentPlayer}
                   animatingCells={animatingCells}
                   onCellClick={handleCellClick}
                 />

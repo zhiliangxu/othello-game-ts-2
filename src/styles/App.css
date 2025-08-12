@@ -41,12 +41,13 @@
 }
 
 .othello-cell.valid-move {
-  background-color: #6aa080;
-  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.3);
+  background-color: #5a9070;
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.1);
 }
 
 .othello-cell.valid-move:hover {
-  background-color: #7ab090;
+  background-color: #6aa080;
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.2);
 }
 
 .piece {
@@ -77,17 +78,38 @@
 }
 
 .valid-move-indicator {
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.6);
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  animation: pulse 1s infinite;
+  opacity: 0.3;
+  transition: all 0.2s ease;
+}
+
+.valid-move-indicator.black-hint {
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+}
+
+.valid-move-indicator.white-hint {
+  background-color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.othello-cell.valid-move:hover .valid-move-indicator.black-hint {
+  opacity: 0.7;
+  transform: scale(1.3);
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.othello-cell.valid-move:hover .valid-move-indicator.white-hint {
+  opacity: 0.7;
+  transform: scale(1.3);
+  background-color: rgba(255, 255, 255, 0.8);
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.05); opacity: 0.6; }
 }
 
 .score-display {
@@ -150,8 +172,8 @@
   }
   
   .valid-move-indicator {
-    width: 16px;
-    height: 16px;
+    width: 8px;
+    height: 8px;
   }
   
   .game-board {
@@ -171,8 +193,8 @@
   }
   
   .valid-move-indicator {
-    width: 14px;
-    height: 14px;
+    width: 6px;
+    height: 6px;
   }
 }
 

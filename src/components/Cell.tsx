@@ -3,6 +3,7 @@ import { Player } from '../game/OthelloGame';
 
 interface CellProps {
   player: Player;
+  currentPlayer: Player;
   row: number;
   col: number;
   isValidMove: boolean;
@@ -12,6 +13,7 @@ interface CellProps {
 
 const Cell: React.FC<CellProps> = ({ 
   player, 
+  currentPlayer,
   row, 
   col, 
   isValidMove, 
@@ -54,13 +56,25 @@ const Cell: React.FC<CellProps> = ({
     return classes;
   };
 
+  const getValidMoveIndicatorClass = (): string => {
+    let classes = 'valid-move-indicator';
+    
+    if (currentPlayer === Player.BLACK) {
+      classes += ' black-hint';
+    } else if (currentPlayer === Player.WHITE) {
+      classes += ' white-hint';
+    }
+    
+    return classes;
+  };
+
   return (
     <div className={getCellClass()} onClick={handleClick}>
       {player !== Player.EMPTY && (
         <div className={getPieceClass()}></div>
       )}
       {isValidMove && player === Player.EMPTY && (
-        <div className="valid-move-indicator"></div>
+        <div className={getValidMoveIndicatorClass()}></div>
       )}
     </div>
   );
