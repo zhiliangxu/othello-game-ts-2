@@ -233,3 +233,26 @@
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
+
+/* AI thinking banner - always reserves space to prevent layout shift */
+.ai-thinking-banner {
+  height: 58px; /* Fixed height to match alert height */
+  transition: opacity 0.3s ease;
+}
+
+.ai-thinking-banner.visible {
+  opacity: 1;
+}
+
+.ai-thinking-banner.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-thinking-banner .alert {
+  margin-bottom: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

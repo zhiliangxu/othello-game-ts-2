@@ -131,14 +131,14 @@ const App: React.FC = () => {
                 whiteCount={gameState.whiteCount}
               />
               
-              {isAIThinking && (
-                <div className="alert alert-info text-center">
+              <div className={`ai-thinking-banner ${isAIThinking ? 'visible' : 'hidden'}`}>
+                <div className="alert alert-info text-center mb-0">
                   <div className="spinner-border spinner-border-sm me-2" role="status">
                     <span className="visually-hidden">Loading...</span>
                   </div>
                   AI is thinking...
                 </div>
-              )}
+              </div>
               
               <div className="game-container">
                 <GameBoard
