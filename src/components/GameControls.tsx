@@ -1,20 +1,25 @@
 import React from 'react';
 import { Difficulty } from '../ai/AStarAI';
 
-export enum GameMode {
-  HUMAN_VS_HUMAN = 'human-vs-human',
-  HUMAN_VS_COMPUTER = 'human-vs-computer'
-}
+// Using const assertion for better type safety
+export const GameMode = {
+  HUMAN_VS_HUMAN: 'human-vs-human',
+  HUMAN_VS_COMPUTER: 'human-vs-computer'
+} as const;
 
+export type GameMode = typeof GameMode[keyof typeof GameMode];
+
+// More concise interface with better typing
 interface GameControlsProps {
-  gameMode: GameMode;
-  difficulty: Difficulty;
-  gameOver: boolean;
-  onGameModeChange: (mode: GameMode) => void;
-  onDifficultyChange: (difficulty: Difficulty) => void;
-  onNewGame: () => void;
+  readonly gameMode: GameMode;
+  readonly difficulty: Difficulty;
+  readonly gameOver: boolean;
+  readonly onGameModeChange: (mode: GameMode) => void;
+  readonly onDifficultyChange: (difficulty: Difficulty) => void;
+  readonly onNewGame: () => void;
 }
 
+// Using destructuring with better default handling
 const GameControls: React.FC<GameControlsProps> = ({
   gameMode,
   difficulty,
@@ -23,6 +28,8 @@ const GameControls: React.FC<GameControlsProps> = ({
   onDifficultyChange,
   onNewGame
 }) => {
+  // Helper function for better readability
+  const isComputerMode = gameMode === GameMode.HUMAN_VS_COMPUTER;
   return (
     <div className="game-controls">
       <div className="row mb-3">
@@ -37,13 +44,15 @@ const GameControls: React.FC<GameControlsProps> = ({
             <option value={GameMode.HUMAN_VS_COMPUTER}>Human vs Computer</option>
           </select>
         </div>
-        {gameMode === GameMode.HUMAN_VS_COMPUTER && (
+        
+        {/* Using logical AND for conditional rendering */}
+        {isComputerMode && (
           <div className="col-md-6">
             <label className="form-label">Difficulty:</label>
             <select 
               className="form-select" 
               value={difficulty} 
-              onChange={(e) => onDifficultyChange(parseInt(e.target.value) as Difficulty)}
+              onChange={(e) => onDifficultyChange(Number(e.target.value) as Difficulty)}
             >
               <option value={Difficulty.EASY}>Easy</option>
               <option value={Difficulty.MEDIUM}>Medium</option>

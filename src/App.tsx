@@ -9,7 +9,12 @@ import { SoundManager } from './utils/SoundManager';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/App.css';
 
+// Using const assertion for better type inference
+const ANIMATION_DURATION = 500 as const;
+const AI_THINKING_DELAY = 500 as const;
+
 const App: React.FC = () => {
+  // Using lazy initialization and proper typing
   const [game] = useState(() => new OthelloGame());
   const [gameState, setGameState] = useState(() => game.getGameState());
   const [gameMode, setGameMode] = useState<GameMode>(GameMode.HUMAN_VS_COMPUTER);
@@ -19,70 +24,58 @@ const App: React.FC = () => {
   const [animatingCells, setAnimatingCells] = useState<Position[]>([]);
   const [isAIThinking, setIsAIThinking] = useState(false);
 
-  const updateGameState = useCallback(() => {
-    setGameState(game.getGameState());
-  }, [game]);
+  // More concise helper functions using arrow syntax
+  const updateGameState = useCallback(() => setGameState(game.getGameState()), [game]);
+
+  const animateMove = useCallback((position: Position) => {
+    setAnimatingCells([position]);
+    setTimeout(() => setAnimatingCells([]), ANIMATION_DURATION);
+  }, []);
 
   const handleCellClick = useCallback(async (row: number, col: number) => {
+    // Early returns for better readability
     if (gameState.gameOver || isAIThinking) return;
-    
-    // In human vs computer mode, only allow human (black) to click
-    if (gameMode === GameMode.HUMAN_VS_COMPUTER && gameState.currentPlayer === Player.WHITE) {
+    if (gameMode === GameMode.HUMAN_VS_COMPUTER && gameState.currentPlayer === Player.WHITE) return;
+
+    if (!game.makeMove(row, col)) return;
+
+    soundManager.playPlacePieceSound();
+    animateMove({ row, col });
+    updateGameState();
+
+    const newState = game.getGameState();
+    if (newState.gameOver) {
+      soundManager.playGameOverSound();
       return;
     }
 
-    if (game.makeMove(row, col)) {
-      soundManager.playPlacePieceSound();
-      
-      // Add animation for flipped pieces
-      setAnimatingCells([{ row, col }]);
-      setTimeout(() => setAnimatingCells([]), 500);
-      
-      updateGameState();
-      
-      // Check if game is over
-      const newState = game.getGameState();
-      if (newState.gameOver) {
-        soundManager.playGameOverSound();
-        return;
-      }
-
-      // If it's computer's turn in human vs computer mode
-      if (gameMode === GameMode.HUMAN_VS_COMPUTER && newState.currentPlayer === Player.WHITE) {
-        handleAIMove();
-      }
+    // Using optional chaining for cleaner conditionals
+    if (gameMode === GameMode.HUMAN_VS_COMPUTER && newState.currentPlayer === Player.WHITE) {
+      handleAIMove();
     }
-  }, [gameState, gameMode, isAIThinking, game, soundManager, updateGameState]);
+  }, [gameState, gameMode, isAIThinking, game, soundManager, updateGameState, animateMove]);
 
   const handleAIMove = useCallback(async () => {
     setIsAIThinking(true);
     
-    // Add a small delay to make AI thinking visible
     setTimeout(() => {
       const currentState = game.getGameState();
       const aiMove = ai.getBestMove(currentState.board, currentState.validMoves);
       
-      if (aiMove) {
-        if (game.makeMove(aiMove.row, aiMove.col)) {
-          soundManager.playPlacePieceSound();
-          
-          // Add animation for AI move
-          setAnimatingCells([aiMove]);
-          setTimeout(() => setAnimatingCells([]), 500);
-          
-          updateGameState();
-          
-          // Check if game is over
-          const newState = game.getGameState();
-          if (newState.gameOver) {
-            soundManager.playGameOverSound();
-          }
+      if (aiMove && game.makeMove(aiMove.row, aiMove.col)) {
+        soundManager.playPlacePieceSound();
+        animateMove(aiMove);
+        updateGameState();
+        
+        const newState = game.getGameState();
+        if (newState.gameOver) {
+          soundManager.playGameOverSound();
         }
       }
       
       setIsAIThinking(false);
-    }, 500);
-  }, [game, ai, soundManager, updateGameState]);
+    }, AI_THINKING_DELAY);
+  }, [game, ai, soundManager, updateGameState, animateMove]);
 
   const handleNewGame = useCallback(() => {
     game.resetGame();
@@ -101,12 +94,15 @@ const App: React.FC = () => {
     ai.setDifficulty(newDifficulty);
   }, [ai]);
 
-  // Handle AI move when it's AI's turn at game start
+  // Effect for handling AI moves with better condition checking
   useEffect(() => {
-    if (gameMode === GameMode.HUMAN_VS_COMPUTER && 
-        gameState.currentPlayer === Player.WHITE && 
-        !gameState.gameOver && 
-        !isAIThinking) {
+    const shouldAIMove = 
+      gameMode === GameMode.HUMAN_VS_COMPUTER && 
+      gameState.currentPlayer === Player.WHITE && 
+      !gameState.gameOver && 
+      !isAIThinking;
+      
+    if (shouldAIMove) {
       handleAIMove();
     }
   }, [gameMode, gameState.currentPlayer, gameState.gameOver, isAIThinking, handleAIMove]);

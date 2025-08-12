@@ -1,48 +1,67 @@
 import { Player, Position } from '../game/OthelloGame';
 
 export interface AIMove {
-  row: number;
-  col: number;
-  score: number;
+  readonly row: number;
+  readonly col: number;
+  readonly score: number;
 }
 
-export enum Difficulty {
-  EASY = 2,
-  MEDIUM = 4,
-  HARD = 6
-}
+export const Difficulty = {
+  EASY: 2,
+  MEDIUM: 4,
+  HARD: 6
+} as const;
 
+export type Difficulty = typeof Difficulty[keyof typeof Difficulty];
+
+// Modern class with private fields
 export class AStarAI {
-  private maxDepth: number;
-  private player: Player;
+  #maxDepth: number;
+  readonly #player: Player;
+  
+  // Constants using const assertions
+  static readonly #DIRECTIONS = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],           [0, 1],
+    [1, -1],  [1, 0],  [1, 1]
+  ] as const;
+  
+  static readonly #CORNERS = [
+    [0, 0], [0, 7], [7, 0], [7, 7]
+  ] as const;
+  
+  static readonly #BOARD_SIZE = 8 as const;
+  
+  // Evaluation weights using Record type
+  static readonly WEIGHTS: Record<'piece' | 'corner' | 'edge' | 'mobility' | 'stability', number> = {
+    piece: 1,
+    corner: 25,
+    edge: 5,
+    mobility: 10,
+    stability: 15
+  };
 
   constructor(player: Player, difficulty: Difficulty = Difficulty.MEDIUM) {
-    this.player = player;
-    this.maxDepth = difficulty;
+    this.#player = player;
+    this.#maxDepth = difficulty;
   }
 
   public getBestMove(board: Player[][], validMoves: Position[]): Position | null {
-    if (validMoves.length === 0) {
-      return null;
-    }
+    if (!validMoves.length) return null;
 
-    let bestMove: Position | null = null;
-    let bestScore = -Infinity;
-
-    for (const move of validMoves) {
+    const { bestMove } = validMoves.reduce((acc, move) => {
       const score = this.minimax(
-        this.simulateMove(board, move.row, move.col, this.player),
-        this.maxDepth - 1,
+        this.simulateMove(board, move.row, move.col, this.#player),
+        this.#maxDepth - 1,
         false,
         -Infinity,
         Infinity
       );
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
-    }
+      return score > acc.bestScore 
+        ? { bestMove: move, bestScore: score }
+        : acc;
+    }, { bestMove: null as Position | null, bestScore: -Infinity });
 
     return bestMove;
   }
@@ -54,151 +73,122 @@ export class AStarAI {
     alpha: number,
     beta: number
   ): number {
-    if (depth === 0 || this.isGameOver(board)) {
+    if (depth === 0 || this.#isGameOver(board)) {
       return this.evaluateBoard(board);
     }
 
-    const currentPlayer = isMaximizing ? this.player : this.getOpponent(this.player);
+    const currentPlayer = isMaximizing ? this.#player : this.#getOpponent(this.#player);
     const validMoves = this.getValidMoves(board, currentPlayer);
 
-    if (validMoves.length === 0) {
+    if (!validMoves.length) {
       // No moves available, check if opponent can move
-      const opponentMoves = this.getValidMoves(board, this.getOpponent(currentPlayer));
-      if (opponentMoves.length === 0) {
-        // Game over
-        return this.evaluateBoard(board);
-      } else {
-        // Pass turn to opponent
-        return this.minimax(board, depth - 1, !isMaximizing, alpha, beta);
-      }
+      const opponentMoves = this.getValidMoves(board, this.#getOpponent(currentPlayer));
+      return !opponentMoves.length 
+        ? this.evaluateBoard(board) // Game over
+        : this.minimax(board, depth - 1, !isMaximizing, alpha, beta); // Pass turn
     }
 
-    if (isMaximizing) {
-      let maxEval = -Infinity;
-      for (const move of validMoves) {
-        const newBoard = this.simulateMove(board, move.row, move.col, currentPlayer);
-        const evaluation = this.minimax(newBoard, depth - 1, false, alpha, beta);
-        maxEval = Math.max(maxEval, evaluation);
-        alpha = Math.max(alpha, evaluation);
-        if (beta <= alpha) {
-          break; // Alpha-beta pruning
-        }
-      }
-      return maxEval;
-    } else {
-      let minEval = Infinity;
-      for (const move of validMoves) {
-        const newBoard = this.simulateMove(board, move.row, move.col, currentPlayer);
-        const evaluation = this.minimax(newBoard, depth - 1, true, alpha, beta);
-        minEval = Math.min(minEval, evaluation);
-        beta = Math.min(beta, evaluation);
-        if (beta <= alpha) {
-          break; // Alpha-beta pruning
-        }
-      }
-      return minEval;
+    return isMaximizing 
+      ? this.#maximizeEvaluation(board, validMoves, depth, alpha, beta, currentPlayer)
+      : this.#minimizeEvaluation(board, validMoves, depth, alpha, beta, currentPlayer);
+  }
+
+  #maximizeEvaluation(board: Player[][], validMoves: Position[], depth: number, alpha: number, beta: number, currentPlayer: Player): number {
+    let maxEval = -Infinity;
+    for (const move of validMoves) {
+      const newBoard = this.simulateMove(board, move.row, move.col, currentPlayer);
+      const evaluation = this.minimax(newBoard, depth - 1, false, alpha, beta);
+      maxEval = Math.max(maxEval, evaluation);
+      alpha = Math.max(alpha, evaluation);
+      if (beta <= alpha) break; // Alpha-beta pruning
     }
+    return maxEval;
+  }
+
+  #minimizeEvaluation(board: Player[][], validMoves: Position[], depth: number, alpha: number, beta: number, currentPlayer: Player): number {
+    let minEval = Infinity;
+    for (const move of validMoves) {
+      const newBoard = this.simulateMove(board, move.row, move.col, currentPlayer);
+      const evaluation = this.minimax(newBoard, depth - 1, true, alpha, beta);
+      minEval = Math.min(minEval, evaluation);
+      beta = Math.min(beta, evaluation);
+      if (beta <= alpha) break; // Alpha-beta pruning
+    }
+    return minEval;
   }
 
   private evaluateBoard(board: Player[][]): number {
-    let score = 0;
+    // Using more concise object destructuring with computed property names
+    const scores = {
+      piece: this.#calculatePieceScore(board),
+      corner: this.#calculateCornerScore(board),
+      edge: this.#calculateEdgeScore(board),
+      mobility: this.calculateMobilityScore(board),
+      stability: this.calculateStabilityScore(board)
+    };
 
-    // Piece count
-    const pieceScore = this.calculatePieceScore(board);
-    
-    // Corner control
-    const cornerScore = this.calculateCornerScore(board);
-    
-    // Edge control
-    const edgeScore = this.calculateEdgeScore(board);
-    
-    // Mobility (valid moves)
-    const mobilityScore = this.calculateMobilityScore(board);
-    
-    // Stability
-    const stabilityScore = this.calculateStabilityScore(board);
-
-    // Weighted combination
-    score = pieceScore * 1 + 
-            cornerScore * 25 + 
-            edgeScore * 5 + 
-            mobilityScore * 10 + 
-            stabilityScore * 15;
-
-    return score;
+    // Using reduce for weighted combination
+    return Object.entries(scores).reduce(
+      (total, [key, value]) => total + value * AStarAI.WEIGHTS[key as keyof typeof AStarAI.WEIGHTS],
+      0
+    );
   }
 
-  private calculatePieceScore(board: Player[][]): number {
-    let myPieces = 0;
-    let opponentPieces = 0;
-    const opponent = this.getOpponent(this.player);
+  #calculatePieceScore(board: Player[][]): number {
+    const opponent = this.#getOpponent(this.#player);
+    
+    // Using flatMap and filter for more functional approach
+    const counts = board.flat().reduce(
+      (acc, cell) => {
+        if (cell === this.#player) acc.my++;
+        else if (cell === opponent) acc.opponent++;
+        return acc;
+      },
+      { my: 0, opponent: 0 }
+    );
 
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        if (board[row][col] === this.player) {
-          myPieces++;
-        } else if (board[row][col] === opponent) {
-          opponentPieces++;
-        }
-      }
-    }
-
-    return myPieces - opponentPieces;
+    return counts.my - counts.opponent;
   }
 
-  private calculateCornerScore(board: Player[][]): number {
-    const corners = [[0, 0], [0, 7], [7, 0], [7, 7]];
-    let score = 0;
-    const opponent = this.getOpponent(this.player);
-
-    for (const [row, col] of corners) {
-      if (board[row][col] === this.player) {
-        score += 1;
-      } else if (board[row][col] === opponent) {
-        score -= 1;
-      }
-    }
-
-    return score;
+  #calculateCornerScore(board: Player[][]): number {
+    const opponent = this.#getOpponent(this.#player);
+    
+    return AStarAI.#CORNERS.reduce((score, [row, col]) => {
+      const cell = board[row]?.[col];
+      return score + (cell === this.#player ? 1 : cell === opponent ? -1 : 0);
+    }, 0);
   }
 
-  private calculateEdgeScore(board: Player[][]): number {
+  #calculateEdgeScore(board: Player[][]): number {
+    const opponent = this.#getOpponent(this.#player);
     let score = 0;
-    const opponent = this.getOpponent(this.player);
 
-    // Top and bottom edges
-    for (let col = 0; col < 8; col++) {
-      if (board[0][col] === this.player) score += 1;
-      if (board[0][col] === opponent) score -= 1;
-      if (board[7][col] === this.player) score += 1;
-      if (board[7][col] === opponent) score -= 1;
-    }
+    // More concise edge calculation using array methods
+    const edgePositions = [
+      ...Array.from({ length: AStarAI.#BOARD_SIZE }, (_, i) => [[0, i], [7, i]]).flat(),
+      ...Array.from({ length: AStarAI.#BOARD_SIZE }, (_, i) => [[i, 0], [i, 7]]).flat()
+    ] as const;
 
-    // Left and right edges
-    for (let row = 0; row < 8; row++) {
-      if (board[row][0] === this.player) score += 1;
-      if (board[row][0] === opponent) score -= 1;
-      if (board[row][7] === this.player) score += 1;
-      if (board[row][7] === opponent) score -= 1;
-    }
-
-    return score;
+    return edgePositions.reduce((score, [row, col]) => {
+      const cell = board[row]?.[col];
+      return score + (cell === this.#player ? 1 : cell === opponent ? -1 : 0);
+    }, 0);
   }
 
   private calculateMobilityScore(board: Player[][]): number {
-    const myMoves = this.getValidMoves(board, this.player).length;
-    const opponentMoves = this.getValidMoves(board, this.getOpponent(this.player)).length;
+    const myMoves = this.getValidMoves(board, this.#player).length;
+    const opponentMoves = this.getValidMoves(board, this.#getOpponent(this.#player)).length;
     
     return myMoves - opponentMoves;
   }
 
   private calculateStabilityScore(board: Player[][]): number {
     let score = 0;
-    const opponent = this.getOpponent(this.player);
+    const opponent = this.#getOpponent(this.#player);
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        if (board[row][col] === this.player && this.isStable(board, row, col, this.player)) {
+        if (board[row][col] === this.#player && this.isStable(board, row, col, this.#player)) {
           score += 1;
         } else if (board[row][col] === opponent && this.isStable(board, row, col, opponent)) {
           score -= 1;
@@ -218,38 +208,22 @@ export class AStarAI {
   }
 
   private hasStableNeighbors(board: Player[][], row: number, col: number, player: Player): boolean {
-    const directions = [
-      [-1, -1], [-1, 0], [-1, 1],
-      [0, -1],           [0, 1],
-      [1, -1],  [1, 0],  [1, 1]
-    ];
-
-    for (const [dr, dc] of directions) {
+    return AStarAI.#DIRECTIONS.every(([dr, dc]) => {
       const newRow = row + dr;
       const newCol = col + dc;
       
-      if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
-        if (board[newRow][newCol] !== player && board[newRow][newCol] !== Player.EMPTY) {
-          return false;
-        }
-      }
-    }
-
-    return true;
+      return !(newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) ||
+             board[newRow][newCol] === player || 
+             board[newRow][newCol] === Player.EMPTY;
+    });
   }
 
   private getValidMoves(board: Player[][], player: Player): Position[] {
-    const moves: Position[] = [];
-    
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        if (this.isValidMove(board, row, col, player)) {
-          moves.push({ row, col });
-        }
-      }
-    }
-    
-    return moves;
+    return Array.from({ length: 8 }, (_, row) =>
+      Array.from({ length: 8 }, (_, col) => 
+        this.isValidMove(board, row, col, player) ? { row, col } : null
+      ).filter((move): move is Position => move !== null)
+    ).flat();
   }
 
   private isValidMove(board: Player[][], row: number, col: number, player: Player): boolean {
@@ -257,19 +231,9 @@ export class AStarAI {
       return false;
     }
 
-    const directions = [
-      [-1, -1], [-1, 0], [-1, 1],
-      [0, -1],           [0, 1],
-      [1, -1],  [1, 0],  [1, 1]
-    ];
-
-    for (const [dr, dc] of directions) {
-      if (this.canFlipInDirection(board, row, col, dr, dc, player)) {
-        return true;
-      }
-    }
-
-    return false;
+    return AStarAI.#DIRECTIONS.some(([dr, dc]) => 
+      this.canFlipInDirection(board, row, col, dr, dc, player)
+    );
   }
 
   private canFlipInDirection(board: Player[][], row: number, col: number, dr: number, dc: number, player: Player): boolean {
@@ -303,17 +267,11 @@ export class AStarAI {
 
     newBoard[row][col] = player;
 
-    const directions = [
-      [-1, -1], [-1, 0], [-1, 1],
-      [0, -1],           [0, 1],
-      [1, -1],  [1, 0],  [1, 1]
-    ];
-
-    for (const [dr, dc] of directions) {
+    AStarAI.#DIRECTIONS.forEach(([dr, dc]) => {
       if (this.canFlipInDirection(newBoard, row, col, dr, dc, player)) {
         this.flipInDirection(newBoard, row, col, dr, dc, player);
       }
-    }
+    });
 
     return newBoard;
   }
@@ -329,17 +287,16 @@ export class AStarAI {
     }
   }
 
-  private getOpponent(player: Player): Player {
-    return player === Player.BLACK ? Player.WHITE : Player.BLACK;
-  }
+  #getOpponent = (player: Player): Player => 
+    player === Player.BLACK ? Player.WHITE : Player.BLACK;
 
-  private isGameOver(board: Player[][]): boolean {
+  #isGameOver(board: Player[][]): boolean {
     const blackMoves = this.getValidMoves(board, Player.BLACK);
     const whiteMoves = this.getValidMoves(board, Player.WHITE);
     return blackMoves.length === 0 && whiteMoves.length === 0;
   }
 
   public setDifficulty(difficulty: Difficulty): void {
-    this.maxDepth = difficulty;
+    this.#maxDepth = difficulty;
   }
 }

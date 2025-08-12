@@ -1,16 +1,17 @@
 import React from 'react';
 import { Difficulty } from '../ai/AStarAI';
-export declare enum GameMode {
-    HUMAN_VS_HUMAN = "human-vs-human",
-    HUMAN_VS_COMPUTER = "human-vs-computer"
-}
+export declare const GameMode: {
+    readonly HUMAN_VS_HUMAN: "human-vs-human";
+    readonly HUMAN_VS_COMPUTER: "human-vs-computer";
+};
+export type GameMode = typeof GameMode[keyof typeof GameMode];
 interface GameControlsProps {
-    gameMode: GameMode;
-    difficulty: Difficulty;
-    gameOver: boolean;
-    onGameModeChange: (mode: GameMode) => void;
-    onDifficultyChange: (difficulty: Difficulty) => void;
-    onNewGame: () => void;
+    readonly gameMode: GameMode;
+    readonly difficulty: Difficulty;
+    readonly gameOver: boolean;
+    readonly onGameModeChange: (mode: GameMode) => void;
+    readonly onDifficultyChange: (difficulty: Difficulty) => void;
+    readonly onNewGame: () => void;
 }
 declare const GameControls: React.FC<GameControlsProps>;
 export default GameControls;
