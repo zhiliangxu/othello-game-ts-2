@@ -2,6 +2,7 @@ import React from 'react';
 import { Player } from '../game/OthelloGame';
 interface CellProps {
     player: Player;
+    currentPlayer: Player;
     row: number;
     col: number;
     isValidMove: boolean;

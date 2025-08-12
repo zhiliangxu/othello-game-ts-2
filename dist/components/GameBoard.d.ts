@@ -3,6 +3,7 @@ import { Player, Position } from '../game/OthelloGame';
 interface GameBoardProps {
     board: Player[][];
     validMoves: Position[];
+    currentPlayer: Player;
     animatingCells?: Position[];
     onCellClick: (row: number, col: number) => void;
 }
